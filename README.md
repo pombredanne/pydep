@@ -4,7 +4,7 @@ pydep
 `pydep` is a simple module / command line tool that will print the dependencies of a python project.<br>
 `pydep` is still under active development. There are bugs. Pull requests welcome :)
 
-__WARNING: `pydep` may execute a project's `setup.py`. Do not run on untrusted code.__
+__WARNING: Do not run pydep on untrusted code, as it may execute a project's setup.py.__
 
 Install
 -----
@@ -42,7 +42,8 @@ For example,
 Additional requirements
 -----
 - Unix (Windows is untested and will probably fail, because, e.g., things get piped to /dev/null in a few places)
-- pip
+- pip 1.5+
+- curl, unzip, gunzip, tar
 
 Tests
 -----
