@@ -15,19 +15,31 @@ from os import path
 
 from pydep import setup_py
 from pydep.util import rmtree
-from pydep.vcs import parse_repo_url
+from pydep.vcs import parse_repo_url, parse_repo_url_and_revision
 
 
 def requirements(rootdir, resolve=True):
+    """Accepts the root directory of a PyPI package and returns its requirements. If
+    both *requirements.txt and setup.py exist, it combines the dependencies
+    defined in both, giving precedence to those defined in requirements.txt.
+    Returns (requirements, error_string) tuple. error_string is None if no
+    error.
+
     """
-    Accepts the root directory of a PyPI package and returns its requirements.
-    Returns (requirements, error_string) tuple. error_string is None if no error.
-    """
-    reqs, err = requirements_from_requirements_txt(rootdir)
-    if err is not None:
-        reqs, err = requirements_from_setup_py(rootdir)
-    if err is not None:
-        return None, 'could not get requirements due to error %s' % err
+    reqs = {}
+    reqstxt_reqs, reqstxt_err = requirements_from_requirements_txt(rootdir)
+    if reqstxt_err is None:
+        for r in reqstxt_reqs:
+            reqs[r.to_dict()['key']] = r
+    setuppy_reqs, setuppy_err = requirements_from_setup_py(rootdir)
+    if setuppy_err is None:
+        for r in setuppy_reqs:
+            if r.to_dict()['key'] not in reqs:
+                reqs[r.to_dict()['key']] = r
+    if reqstxt_err is not None and setuppy_err is not None:
+        return None, 'could not get requirements due to 2 errors: %s, %s' % (reqstxt_err, setuppy_err)
+
+    reqs = list(reqs.values())
 
     if resolve:
         for req in reqs:
@@ -153,7 +165,7 @@ class PipURLInstallRequirement(object):
         self._install_req = install_req
         if install_req.link is None:
             raise 'No URL found in install_req: %s' % str(install_req)
-        self.url = parse_repo_url(install_req.link.url)
+        self.url, self.revision = parse_repo_url_and_revision(install_req.link.url)
         self.metadata = None
         self.vcs = None
         self.type = 'vcs'
