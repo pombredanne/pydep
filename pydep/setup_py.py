@@ -14,11 +14,20 @@ def setup_dirs(container_dir):
     contain a setup.py)
     """
     rootdirs = []
-    for dirpath, _, filenames in os.walk(container_dir):
+    for dirpath, dirnames, filenames in os.walk(container_dir):
         for filename in filenames:
             if filename == 'setup.py':
                 rootdirs.append(dirpath)
                 break
+
+        # Clean up unwanted subdirectories before next walk.
+        newnames = []
+        for dirname in dirnames:
+            if dirname.startswith(".") or dirname.startswith("virtualenv_") or dirname == "testdata":
+                continue
+            newnames.append(dirname)
+        dirnames[:] = newnames
+
     return rootdirs
 
 
@@ -28,7 +37,7 @@ def setup_info_dir(rootdir):
     """
     setupfile = path.join(rootdir, 'setup.py')
     if not path.exists(setupfile):
-        return None, 'setup.py does not exist'
+        return None, setupfile + ' does not exist'
     return setup_info(setupfile), None
 
 
@@ -63,18 +72,19 @@ def setup_info(setupfile):
     stderr_dup = os.dup(2)
     os.dup2(stderr_dup, 1)
 
-    runpy.run_path(path.basename(setupfile), run_name='__main__')
-
-    # Restore stdout
-    os.dup2(old_stdout, 1)  # restores for subprocesses
-    os.close(stderr_dup)
-    sys.stdout = old_sys_stdout  # restores for python process
-    # Restore working dir
-    os.chdir(old_wd)
-    # Restore sys.path
-    sys.path = old_sys_path
-    # Restore setup()
-    distutils.core.setup = old_distutils_setup
-    setuptools_mod.setup = old_setuptools_setup
+    try:
+        runpy.run_path(path.basename(setupfile), run_name='__main__')
+    finally:
+        # Restore stdout
+        os.dup2(old_stdout, 1)  # restores for subprocesses
+        os.close(stderr_dup)
+        sys.stdout = old_sys_stdout  # restores for python process
+        # Restore working dir
+        os.chdir(old_wd)
+        # Restore sys.path
+        sys.path = old_sys_path
+        # Restore setup()
+        distutils.core.setup = old_distutils_setup
+        setuptools_mod.setup = old_setuptools_setup
 
     return setup_dict
